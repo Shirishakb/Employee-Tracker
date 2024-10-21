@@ -1,6 +1,5 @@
-const mysql = require('mysql');
-const inquirer = require("inquirer");
-const table = require("console.table");
+import mysql from 'mysql';
+import inquirer from "inquirer";
 
 var connection = mysql.createConnection({
     host: "localhost",
@@ -10,7 +9,7 @@ var connection = mysql.createConnection({
     database: "workdb"
 });
 
-connection.connect(function (err) {
+connection.connect(function (err: mysql.MysqlError | null) {
     if (err) throw err;
     console.log("connected as id " + connection.threadId + "\n");
     askQuestions();
@@ -30,7 +29,7 @@ function askQuestions() {
             "QUIT"
         ],
         name: "choice"
-    }).then(answers => {
+    }).then((answers: { choice: string }) => {
         console.log(answers.choice);
         switch (answers.choice) {
             case "view all employees":
@@ -77,6 +76,10 @@ function viewEmployees() {
 
 function viewDepartments() {
     connection.query("SELECT * FROM department", function (err, data) {
+        if (err) {
+            console.error(err);
+            return;
+        }
         console.table(data);
         askQuestions();
     })
@@ -141,7 +144,7 @@ function addRole() {
             type: "number",
             name: "department_id"
         }
-    ]).then(function (response: { name: string; role_id: number }) {
+    ]).then(function (response: { title: string; salary: number; department_id: number }) {
         connection.query("INSERT INTO roles (title, salary, department_id) values (?, ?, ?)", [response.title, response.salary, response.department_id], function (err, data) {
             console.table(data);
         })
@@ -163,6 +166,10 @@ function updateEmployeeRole() {
         }
     ]).then(function (response: { name: string; role_id: number }) {
         connection.query("UPDATE employee SET role_id = ? WHERE first_name = ?", [response.role_id, response.name], function (err, data) {
+            if (err) {
+                console.error(err);
+                return;
+            }
             console.table(data);
         })
         askQuestions();
