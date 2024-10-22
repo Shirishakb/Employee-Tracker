@@ -107,7 +107,7 @@ function addEmployee() {
             message: "What is the employees manager's ID?"
         }
     ]).then(function(res) {
-        connection.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)', [res.firstName, res.lastName, res.roleId, res.managerId], function(err, data) {
+        connection.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)', [res.firstName, res.lastName, res.roleId, res.managerId], function(err) {
             if (err) throw err;
             console.table("Successfully Inserted");
             askQuestions();
@@ -146,6 +146,10 @@ function addRole() {
         }
     ]).then(function (response: { title: string; salary: number; department_id: number }) {
         connection.query("INSERT INTO roles (title, salary, department_id) values (?, ?, ?)", [response.title, response.salary, response.department_id], function (err, data) {
+            if (err) {
+                console.error(err);
+                return;
+            }
             console.table(data);
         })
         askQuestions();
