@@ -1,23 +1,21 @@
-import mysql from 'mysql';
-import inquirer from "inquirer";
+import express from 'express';
+import inquirer from 'inquirer'; // Don't forget to install this package if you haven't.
+import { pool, connectToDb } from './connection.js';
 
-var connection = mysql.createConnection({
-    host: "localhost",
-    port: 3306,
-    user: "root",
-    password: "takecare1",
-    database: "workdb"
-});
+// Connect to the PostgreSQL database
+await connectToDb();
 
-connection.connect(function (err: mysql.MysqlError | null) {
-    if (err) throw err;
-    console.log("connected as id " + connection.threadId + "\n");
-    askQuestions();
-});
+const PORT = process.env.PORT || 3001;
+const app = express();
 
+// Express middleware
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+
+// Main prompt function
 function askQuestions() {
     inquirer.prompt({
-        message: "what would you like to do?",
+        message: "What would you like to do?",
         type: "list",
         choices: [
             "view all employees",
@@ -29,154 +27,180 @@ function askQuestions() {
             "QUIT"
         ],
         name: "choice"
-    }).then((answers: { choice: string }) => {
+    }).then((answers) => {
         console.log(answers.choice);
         switch (answers.choice) {
             case "view all employees":
-                viewEmployees()
+                viewEmployees();
                 break;
-
             case "view all departments":
-                viewDepartments()
+                viewDepartments();
                 break;
-
             case "add employee":
-                addEmployee()
+                addEmployee();
                 break;
-
             case "add department":
-                addDepartment()
+                addDepartment();
                 break;
-
             case "add role":
-                addRole()
+                addRole();
                 break;
-
             case "update employee role":
                 updateEmployeeRole();
                 break;
-
             default:
-                connection.end()
+                pool.end();  // Close the PostgreSQL connection pool
                 break;
         }
-    })
+    });
 }
 
+// View all employees
 function viewEmployees() {
-    connection.query("SELECT * FROM employee", function (err: mysql.MysqlError | null, data: any) {
+    pool.query("SELECT * FROM employee", (err, result) => {
         if (err) {
             console.error(err);
             return;
         }
-        console.table(data);
+        console.table(result.rows);  // Use result.rows to access query data in PostgreSQL
         askQuestions();
-    })
+    });
 }
 
+// View all departments
 function viewDepartments() {
-    connection.query("SELECT * FROM department", function (err, data) {
+    pool.query("SELECT * FROM department", (err, result) => {
         if (err) {
             console.error(err);
             return;
         }
-        console.table(data);
+        console.table(result.rows);
         askQuestions();
-    })
+    });
 }
 
+// Add a new employee
 function addEmployee() {
-    inquirer.prompt([{
+    inquirer.prompt([
+        {
             type: "input",
             name: "firstName",
-            message: "What is the employees first name?"
+            message: "What is the employee's first name?"
         },
         {
             type: "input",
             name: "lastName",
-            message: "What is the employees last name?"
+            message: "What is the employee's last name?"
         },
         {
             type: "number",
             name: "roleId",
-            message: "What is the employees role ID"
+            message: "What is the employee's role ID?"
         },
         {
             type: "number",
             name: "managerId",
-            message: "What is the employees manager's ID?"
+            message: "What is the employee's manager's ID?"
         }
-    ]).then(function(res) {
-        connection.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)', [res.firstName, res.lastName, res.roleId, res.managerId], function(err) {
-            if (err) throw err;
-            console.table("Successfully Inserted");
-            askQuestions();
-        })
-    })
+    ]).then((res) => {
+        pool.query(
+            'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)', 
+            [res.firstName, res.lastName, res.roleId, res.managerId],
+            (err) => {
+                if (err) throw err;
+                console.log("Successfully Inserted");
+                askQuestions();
+            }
+        );
+    });
 }
 
+// Add a new department
 function addDepartment() {
-    inquirer.prompt([{
-        type: "input",
-        name: "department",
-        message: "What is the department that you want to add?"
-    }, ]).then(function(res) {
-        connection.query('INSERT INTO department (name) VALUES (?)', [res.department], function(err) {
-            if (err) throw err;
-            console.table("Successfully Inserted");
-            askQuestions();
-        })
-    })
+    inquirer.prompt([
+        {
+            type: "input",
+            name: "department",
+            message: "What is the department that you want to add?"
+        }
+    ]).then((res) => {
+        pool.query(
+            'INSERT INTO department (name) VALUES ($1)', 
+            [res.department], 
+            (err) => {
+                if (err) throw err;
+                console.log("Successfully Inserted");
+                askQuestions();
+            }
+        );
+    });
 }
 
+// Add a new role
 function addRole() {
     inquirer.prompt([
         {
-            message: "enter title:",
+            message: "Enter title:",
             type: "input",
             name: "title"
-        }, {
-            message: "enter salary:",
+        },
+        {
+            message: "Enter salary:",
             type: "number",
             name: "salary"
-        }, {
-            message: "enter department ID:",
+        },
+        {
+            message: "Enter department ID:",
             type: "number",
             name: "department_id"
         }
-    ]).then(function (response: { title: string; salary: number; department_id: number }) {
-        connection.query("INSERT INTO roles (title, salary, department_id) values (?, ?, ?)", [response.title, response.salary, response.department_id], function (err, data) {
-            if (err) {
-                console.error(err);
-                return;
+    ]).then((response) => {
+        pool.query(
+            "INSERT INTO roles (title, salary, department_id) VALUES ($1, $2, $3)",
+            [response.title, response.salary, response.department_id],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Successfully Inserted");
+                askQuestions();
             }
-            console.table(data);
-        })
-        askQuestions();
-    })
-
+        );
+    });
 }
 
+// Update an employee's role
 function updateEmployeeRole() {
     inquirer.prompt([
         {
-            message: "which employee would you like to update? (use first name only for now)",
+            message: "Which employee would you like to update? (use first name only for now)",
             type: "input",
             name: "name"
-        }, {
-            message: "enter the new role ID:",
+        },
+        {
+            message: "Enter the new role ID:",
             type: "number",
             name: "role_id"
         }
-    ]).then(function (response: { name: string; role_id: number }) {
-        connection.query("UPDATE employee SET role_id = ? WHERE first_name = ?", [response.role_id, response.name], function (err, data) {
-            if (err) {
-                console.error(err);
-                return;
+    ]).then((response) => {
+        pool.query(
+            "UPDATE employee SET role_id = $1 WHERE first_name = $2",
+            [response.role_id, response.name],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Successfully Updated");
+                askQuestions();
             }
-            console.table(data);
-        })
-        askQuestions();
-    })
-
+        );
+    });
 }
+
+// Start the application
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    askQuestions();
+});
