@@ -24,6 +24,9 @@ function askQuestions() {
             "add department",
             "add role",
             "update employee role",
+            "Delete employee",
+            "Delete department",
+            "Delete role",
             "QUIT"
         ],
         name: "choice"
@@ -48,8 +51,17 @@ function askQuestions() {
             case "update employee role":
                 updateEmployeeRole();
                 break;
+            case "Delete employee":
+                deleteEmployee();
+                break;
+            case "Delete department":
+                deleteDepartment();
+                break;
+            case "Delete role":
+                deleteRole();
+                break;
             default:
-                pool.end();  // Close the PostgreSQL connection pool
+                pool.end();  
                 break;
         }
     });
@@ -198,7 +210,75 @@ function updateEmployeeRole() {
         );
     });
 }
-
+// Delete an employee
+function deleteEmployee() {
+    inquirer.prompt([
+        {
+            message: "Which employee would you like to delete? (use first name only for now)",
+            type: "input",
+            name: "name"
+        }
+    ]).then((response) => {
+        pool.query(
+            "DELETE FROM employee WHERE first_name = $1",
+            [response.name],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Successfully Deleted");
+                askQuestions();
+            }
+        );
+    });
+}
+// Delete a department
+function deleteDepartment() {
+    inquirer.prompt([
+        {
+            message: "Which department would you like to delete?",
+            type: "input",
+            name: "name"
+        }
+    ]).then((response) => {
+        pool.query(
+            "DELETE FROM department WHERE name = $1",
+            [response.name],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Successfully Deleted");
+                askQuestions();
+            }
+        );
+    });
+}
+// Delete a role
+function deleteRole() {
+    inquirer.prompt([
+        {
+            message: "Which role would you like to delete?",
+            type: "input",
+            name: "name"
+        }
+    ]).then((response) => {
+        pool.query(
+            "DELETE FROM roles WHERE title = $1",
+            [response.name],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Successfully Deleted");
+                askQuestions();
+            }
+        );
+    });
+}
 // Start the application
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
