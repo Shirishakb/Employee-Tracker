@@ -20,13 +20,17 @@ function askQuestions() {
         choices: [
             "view all employees",
             "view all departments",
+            "view employees by manager",
+            "view employees by department",
             "add employee",
             "add department",
             "add role",
             "update employee role",
+            "update employee manager",
             "Delete employee",
             "Delete department",
             "Delete role",
+            "view total utilized budget of a department",
             "QUIT"
         ],
         name: "choice"
@@ -38,6 +42,12 @@ function askQuestions() {
                 break;
             case "view all departments":
                 viewDepartments();
+                break;
+            case "view employees by manager":
+                viewEmployeesByManager();
+                break;
+            case "view employees by department":
+                viewEmployeesByDepartment();
                 break;
             case "add employee":
                 addEmployee();
@@ -51,6 +61,9 @@ function askQuestions() {
             case "update employee role":
                 updateEmployeeRole();
                 break;
+            case "update employee manager":
+                updateEmployeeManager();
+                break;
             case "Delete employee":
                 deleteEmployee();
                 break;
@@ -60,8 +73,11 @@ function askQuestions() {
             case "Delete role":
                 deleteRole();
                 break;
+            case "view total utilized budget of a department":
+                viewDepartmentBudget();
+                break;
             default:
-                pool.end();  
+                pool.end();
                 break;
         }
     });
@@ -88,6 +104,84 @@ function viewDepartments() {
         }
         console.table(result.rows);
         askQuestions();
+    });
+}
+
+// View employees by manager
+function viewEmployeesByManager() {
+    inquirer.prompt([
+        {
+            message: "Enter the manager's ID:",
+            type: "number",
+            name: "managerId"
+        }
+    ]).then((res) => {
+        pool.query(
+            "SELECT * FROM employee WHERE manager_id = $1",
+            [res.managerId],
+            (err, result) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.table(result.rows);
+                askQuestions();
+            }
+        );
+    });
+}
+
+// View employees by department
+function viewEmployeesByDepartment() {
+    inquirer.prompt([
+        {
+            message: "Enter the department ID:",
+            type: "number",
+            name: "departmentId"
+        }
+    ]).then((res) => {
+        pool.query(
+            `SELECT employee.first_name, employee.last_name, role.title 
+            FROM employee 
+            JOIN role ON employee.role_id = role.id 
+            WHERE role.department_id = $1`,
+            [res.departmentId],
+            (err, result) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.table(result.rows);
+                askQuestions();
+            }
+        );
+    });
+}
+
+// View total utilized budget of a department (sum of all employee salaries in a department)
+function viewDepartmentBudget() {
+    inquirer.prompt([
+        {
+            message: "Enter the department ID:",
+            type: "number",
+            name: "departmentId"
+        }
+    ]).then((res) => {
+        pool.query(
+            `SELECT SUM(role.salary) AS total_budget 
+            FROM employee 
+            JOIN role ON employee.role_id = role.id 
+            WHERE role.department_id = $1`,
+            [res.departmentId],
+            (err, result) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.table(result.rows);
+                askQuestions();
+            }
+        );
     });
 }
 
@@ -168,7 +262,7 @@ function addRole() {
         }
     ]).then((response) => {
         pool.query(
-            "INSERT INTO roles (title, salary, department_id) VALUES ($1, $2, $3)",
+            "INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3)",
             [response.title, response.salary, response.department_id],
             (err) => {
                 if (err) {
@@ -210,6 +304,36 @@ function updateEmployeeRole() {
         );
     });
 }
+
+// Update an employee's manager
+function updateEmployeeManager() {
+    inquirer.prompt([
+        {
+            message: "Which employee would you like to update? (use first name only for now)",
+            type: "input",
+            name: "name"
+        },
+        {
+            message: "Enter the new manager ID:",
+            type: "number",
+            name: "managerId"
+        }
+    ]).then((response) => {
+        pool.query(
+            "UPDATE employee SET manager_id = $1 WHERE first_name = $2",
+            [response.managerId, response.name],
+            (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                console.log("Successfully Updated");
+                askQuestions();
+            }
+        );
+    });
+}
+
 // Delete an employee
 function deleteEmployee() {
     inquirer.prompt([
@@ -233,6 +357,7 @@ function deleteEmployee() {
         );
     });
 }
+
 // Delete a department
 function deleteDepartment() {
     inquirer.prompt([
@@ -256,6 +381,7 @@ function deleteDepartment() {
         );
     });
 }
+
 // Delete a role
 function deleteRole() {
     inquirer.prompt([
@@ -266,7 +392,7 @@ function deleteRole() {
         }
     ]).then((response) => {
         pool.query(
-            "DELETE FROM roles WHERE title = $1",
+            "DELETE FROM role WHERE title = $1",
             [response.name],
             (err) => {
                 if (err) {
@@ -279,6 +405,7 @@ function deleteRole() {
         );
     });
 }
+
 // Start the application
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
